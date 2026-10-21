@@ -22,6 +22,24 @@
     return Number.isSafeInteger(pence) && pence > 0 ? pence : null;
   }
 
+  // Evaluates a calculator expression such as "12.5+3×2" to pence; null if invalid or not positive.
+  function evalPence(text) {
+    const src = String(text).replace(/[+\-×÷*/]+$/, '');
+    if (!/^(\d+\.?\d*|\.\d+)([+\-×÷*/](\d+\.?\d*|\.\d+))*$/.test(src)) return null;
+    const toks = src.match(/\d*\.?\d+|\d+\.|[+\-×÷*/]/g);
+    const terms = [];
+    let sign = 1, cur = parseFloat(toks[0]);
+    for (let i = 1; i < toks.length; i += 2) {
+      const n = parseFloat(toks[i + 1]);
+      if (toks[i] === '×' || toks[i] === '*') cur *= n;
+      else if (toks[i] === '÷' || toks[i] === '/') cur /= n;
+      else { terms.push(sign * cur); sign = toks[i] === '-' ? -1 : 1; cur = n; }
+    }
+    terms.push(sign * cur);
+    const pence = Math.round(terms.reduce((a, b) => a + b, 0) * 100);
+    return Number.isSafeInteger(pence) && pence > 0 ? pence : null;
+  }
+
   function formatPence(p) {
     const sign = p < 0 ? '-' : '';
     const a = Math.abs(p);
@@ -178,5 +196,5 @@
     };
   }
 
-  return { BUILTIN_CATEGORIES, parsePence, formatPence, newId, mergeById, currentShared, computeBalance, settle, encodeCode, decodeCode, encodeBackup, decodeBackup, restoreBackup, buildPayload, applyImport };
+  return { BUILTIN_CATEGORIES, parsePence, evalPence, formatPence, newId, mergeById, currentShared, computeBalance, settle, encodeCode, decodeCode, encodeBackup, decodeBackup, restoreBackup, buildPayload, applyImport };
 });

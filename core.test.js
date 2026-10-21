@@ -13,6 +13,22 @@ test('parsePence uses integers', () => {
   assert.equal(C.parsePence('abc'), null);
 });
 
+test('evalPence evaluates calculator expressions', () => {
+  assert.equal(C.evalPence('12.5'), 1250);
+  assert.equal(C.evalPence('12+3.5'), 1550);
+  assert.equal(C.evalPence('2+3×4'), 1400);
+  assert.equal(C.evalPence('10÷4'), 250);
+  assert.equal(C.evalPence('0.1+0.2'), 30);
+  assert.equal(C.evalPence('20-5-3'), 1200);
+  assert.equal(C.evalPence('12+'), 1200);
+  assert.equal(C.evalPence('10÷3'), 333);
+  assert.equal(C.evalPence('5-5'), null);
+  assert.equal(C.evalPence('5-9'), null);
+  assert.equal(C.evalPence('5÷0'), null);
+  assert.equal(C.evalPence(''), null);
+  assert.equal(C.evalPence('+5'), null);
+});
+
 test('odd total: debtor bears the extra penny', () => {
   const b = C.computeBalance([e('1', 'A', 101)], 'A', 'B');
   assert.deepEqual(b.transfer, { from: 'B', to: 'A', amount: 51 });

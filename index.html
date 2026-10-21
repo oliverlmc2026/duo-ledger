@@ -42,6 +42,11 @@ input[type=date]::-webkit-date-and-time-value{text-align:left;min-height:1.2em}
 input[type=checkbox]{width:22px;height:22px;padding:0;flex:none}
 dialog{overflow-x:hidden}
 .btn-like{display:block;text-align:center;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px 14px;cursor:pointer;color:var(--ink);font-size:16px}
+.kp{display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(4,52px);gap:8px;margin-top:8px}
+.kp button{border-radius:999px;padding:0;font-size:20px;font-weight:600;touch-action:manipulation}
+.kp button.op{background:#64b5dd;border-color:#64b5dd;color:#fff}
+.kp button.ok{grid-column:5;grid-row:3/5;background:#ef7d78;border-color:#ef7d78;color:#fff}
+input[name=amount]{font-size:22px;font-weight:700;caret-color:transparent}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:20px;font-size:14px;z-index:9}
 </style>
 </head>
@@ -50,14 +55,14 @@ dialog{overflow-x:hidden}
 <nav id="nav"></nav>
 <script src="core.js"></script>
 <script>
-const {parsePence, formatPence, newId, computeBalance, currentShared} = Core;
+const {parsePence, evalPence, formatPence, newId, computeBalance, currentShared} = Core;
 const STORE = 'duoledger:v1';
 const COLORS = ['#0f766e','#d97706','#7c3aed','#db2777','#2563eb','#65a30d','#dc2626','#0891b2'];
 
 const I18N = {
   zh: {
     tabs: ['記帳','共同','統計','設定'], welcome: '歡迎', nickPrompt: '請輸入你的暱稱', start: '開始',
-    expense: '支出', income: '收入', amount: '金額', category: '分類', date: '日期', note: '備註／商家',
+    expense: '支出', income: '收入', amount: '金額', amountHint: '最多小數點後兩位', category: '分類', date: '日期', note: '備註／商家',
     shared: '共同帳（50/50）', payer: '誰墊付', save: '儲存', del: '刪除', cancel: '取消', empty: '這個月還沒有紀錄',
     balance: '本期結餘', income_m: '本月收入', expense_m: '本月支出', net: '淨額',
     owes: (a,b,p)=>`${a} 要補 ${p} 給 ${b}`, even: '兩人已打平', paidBy: n=>`${n} 墊付`, total: '本期共同支出',
@@ -74,7 +79,7 @@ const I18N = {
   },
   en: {
     tabs: ['Log','Shared','Stats','Settings'], welcome: 'Welcome', nickPrompt: 'Enter your nickname', start: 'Start',
-    expense: 'Expense', income: 'Income', amount: 'Amount', category: 'Category', date: 'Date', note: 'Note / merchant',
+    expense: 'Expense', income: 'Income', amount: 'Amount', amountHint: 'max 2 decimal places', category: 'Category', date: 'Date', note: 'Note / merchant',
     shared: 'Shared (50/50)', payer: 'Paid by', save: 'Save', del: 'Delete', cancel: 'Cancel', empty: 'Nothing this month',
     balance: 'Current balance', income_m: 'Income', expense_m: 'Spent', net: 'Net',
     owes: (a,b,p)=>`${a} owes ${b} ${p}`, even: 'All square', paidBy: n=>`${n} paid`, total: 'Shared spend this period',
@@ -215,12 +220,28 @@ function openForm(entry) {
   const e = entry || {type: 'expense', shared: ui.tab === 1, amount: 0, cat: 'food', date: today(), note: '', payer: state.profile.name};
   const dlg = document.createElement('dialog');
   const done = () => { dlg.close(); dlg.remove(); };
+  let expr = e.amount ? (e.amount / 100).toFixed(2) : '';
+  let kpOpen = !entry;
+  const KEYS = [['7','8','9','÷','AC'],['4','5','6','×','⌫'],['1','2','3','+','OK'],['00','0','.','-']];
+  const OPS = '+-×÷';
+  const press = k => {
+    const last = expr.slice(-1), num = expr.split(/[+\-×÷]/).pop();
+    if (k === 'AC') expr = '';
+    else if (k === '⌫') expr = expr.slice(0, -1);
+    else if (OPS.includes(k)) { if (expr) expr = (OPS.includes(last) ? expr.slice(0, -1) : expr) + k; }
+    else if (k === '.') { if (!num.includes('.')) expr += num ? '.' : '0.'; }
+    else if (num.includes('.')) { const d = 2 - num.split('.')[1].length; if (d > 0) expr += k.slice(0, d); }
+    else if (num === '' || num === '0') { if (k !== '00') expr = expr.slice(0, expr.length - num.length) + k; }
+    else expr += k;
+    dlg.querySelector('[name=amount]').value = expr;
+  };
   const draw = () => {
     const cats = state.categories.filter(c => c.kind === e.type);
     if (!cats.some(c => c.id === e.cat)) e.cat = cats[0].id;
     const payers = [state.profile.name, state.partner].filter(Boolean);
     dlg.innerHTML = `<form method="dialog" id="f"><div class="seg"><button type="button" data-type="expense" class="${e.type === 'expense' ? 'on' : ''}">${t().expense}</button><button type="button" data-type="income" class="${e.type === 'income' ? 'on' : ''}">${t().income}</button></div>
-      <label>${t().amount} (£)</label><input name="amount" inputmode="decimal" autocomplete="off" value="${e.amount ? (e.amount / 100).toFixed(2) : ''}" required>
+      <label>${t().amount} (£) · ${t().amountHint}</label><input name="amount" inputmode="none" readonly autocomplete="off" value="${expr}" placeholder="0.00" required>
+      ${kpOpen ? `<div class="kp">${KEYS.flat().map(k => `<button type="button" data-k="${k}" class="${k === 'OK' ? 'ok' : /[÷×+\-AC⌫]/.test(k) ? 'op' : ''}">${k}</button>`).join('')}</div>` : ''}
       <label>${t().category}</label><select name="cat">${cats.map(c => `<option value="${c.id}" ${c.id === e.cat ? 'selected' : ''}>${esc(catName(c.id))}</option>`).join('')}</select>
       <label>${t().date}</label><input type="date" name="date" value="${e.date}" required>
       <label>${t().note}</label><input name="note" value="${esc(e.note)}" autocomplete="off">
@@ -233,10 +254,16 @@ function openForm(entry) {
     e.date = f.get('date'); e.note = f.get('note').trim(); e.cat = f.get('cat');
     e.shared = e.type === 'expense' && f.has('shared');
     if (e.shared) e.payer = f.get('payer') || state.profile.name;
-    return parsePence(f.get('amount'));
   };
   dlg.addEventListener('click', ev => {
     const b = ev.target.closest('button');
+    if (b?.dataset.k) {
+      if (b.dataset.k !== 'OK') return press(b.dataset.k);
+      const p = evalPence(expr);
+      if (p) { expr = (p / 100).toFixed(2); kpOpen = false; read(); draw(); }
+      return;
+    }
+    if (ev.target.name === 'amount' && !kpOpen) { kpOpen = true; read(); draw(); return; }
     const chk = ev.target.name === 'shared';
     if (b?.dataset.type) { read(); e.type = b.dataset.type; if (e.type === 'income') e.shared = false; draw(); }
     else if (chk) { read(); draw(); }
@@ -245,7 +272,7 @@ function openForm(entry) {
   });
   dlg.addEventListener('submit', ev => {
     ev.preventDefault();
-    const amount = parsePence(new FormData(dlg.querySelector('form')).get('amount'));
+    const amount = evalPence(expr);
     read();
     if (!amount) { dlg.querySelector('[name=amount]').focus(); return; }
     const now = Date.now();
