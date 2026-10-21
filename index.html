@@ -25,7 +25,8 @@ button.danger{color:var(--neg)}button.small{padding:6px 10px;font-size:14px}
 input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
 label{display:block;font-size:13px;color:var(--mute);margin:12px 0 4px}
 nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
-nav button{flex:1;border:0;border-radius:0;background:none;padding:12px 4px;color:var(--mute);font-size:13px}
+nav button{flex:1;border:0;border-radius:0;background:none;padding:8px 4px 10px;color:var(--mute);font-size:12px;display:flex;flex-direction:column;align-items:center;gap:3px}
+nav svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 nav button.on{color:var(--accent);font-weight:700}
 .item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer}
 .item:last-child{border:0}
@@ -61,43 +62,49 @@ const COLORS = ['#0f766e','#d97706','#7c3aed','#db2777','#2563eb','#65a30d','#dc
 
 const I18N = {
   zh: {
-    tabs: ['記帳','共同','統計','設定'], welcome: '歡迎', nickPrompt: '請輸入你的暱稱', start: '開始',
+    tabs: ['個人','共同','統計','設定'], welcome: '歡迎', nickPrompt: '請輸入你的暱稱', start: '開始',
     expense: '支出', income: '收入', amount: '金額', amountHint: '最多小數點後兩位', category: '分類', date: '日期', note: '備註／商家',
     shared: '共同帳（50/50）', payer: '誰墊付', save: '儲存', del: '刪除', cancel: '取消', empty: '這個月還沒有紀錄',
     balance: '本期結餘', income_m: '本月收入', expense_m: '本月支出', net: '淨額',
     owes: (a,b,p)=>`${a} 要補 ${p} 給 ${b}`, even: '兩人已打平', paidBy: n=>`${n} 墊付`, total: '本期共同支出',
     settle: '結算', settleConfirm: '確認結算並封存這一期？', history: '歷史結算', noHistory: '還沒有結算紀錄',
-    items: n=>`${n} 筆`, sync: '同步', copyCode: '複製我的碼', pasteCode: '貼上對方的碼', importBtn: '匯入',
+    items: n=>`${n} 筆`, sync: '同步', settleTab: '結算', listTab: '顯示', copyCode: '複製我的碼', pasteCode: '貼上對方的碼', importBtn: '匯入',
     copied: '已複製，傳給對方吧', imported: n=>`已匯入，更新了 ${n} 筆`, badCode: '碼無效，請確認完整複製', sameName: '這是你自己的碼',
     otherPartner: '這個碼來自另一位使用者', noPartner: '先匯入對方的碼，才能選對方為墊付者',
     partner: '共同記帳對象', none: '尚未連結', lang: '語言', nick: '我的暱稱', cats: '分類管理', addCat: '新增分類',
     rename: '改名', catName: '分類名稱', trend: '每月支出趨勢', share: '分類佔比', nodata: '沒有資料', settledOn: '結算於',
     nothingToSettle: '沒有可結算的共同支出', nickLocked: '暱稱已用於同步，不能更改',
     cat: {food:'飲食',transport:'交通',shopping:'購物',home:'住家',fun:'娛樂',other:'其他',salary:'薪資','other-in':'其他'},
-    personalOnly: '統計只含個人帳目',
+    personalOnly: '個人統計只含個人帳目，不含共同帳', sharedStatsNote: '共同統計包含兩人所有共同支出，已結算的也計算在內',
     backup: '備份', backupHint: '備份含全部資料（含個人帳目）。換手機或刪除 App 前請先備份。', copyBackup: '複製備份碼', downloadBackup: '下載備份檔', pasteBackup: '貼上備份碼', restore: '還原', restoreFile: '從檔案還原', restored: '已還原', otherPerson: '這份備份屬於另一位使用者', restoreFrom: '從備份還原',
   },
   en: {
-    tabs: ['Log','Shared','Stats','Settings'], welcome: 'Welcome', nickPrompt: 'Enter your nickname', start: 'Start',
+    tabs: ['Personal','Shared','Stats','Settings'], welcome: 'Welcome', nickPrompt: 'Enter your nickname', start: 'Start',
     expense: 'Expense', income: 'Income', amount: 'Amount', amountHint: 'max 2 decimal places', category: 'Category', date: 'Date', note: 'Note / merchant',
     shared: 'Shared (50/50)', payer: 'Paid by', save: 'Save', del: 'Delete', cancel: 'Cancel', empty: 'Nothing this month',
     balance: 'Current balance', income_m: 'Income', expense_m: 'Spent', net: 'Net',
     owes: (a,b,p)=>`${a} owes ${b} ${p}`, even: 'All square', paidBy: n=>`${n} paid`, total: 'Shared spend this period',
     settle: 'Settle up', settleConfirm: 'Settle and archive this period?', history: 'Settlement history', noHistory: 'No settlements yet',
-    items: n=>`${n} item${n===1?'':'s'}`, sync: 'Sync', copyCode: 'Copy my code', pasteCode: "Paste partner's code", importBtn: 'Import',
+    items: n=>`${n} item${n===1?'':'s'}`, sync: 'Sync', settleTab: 'Settle', listTab: 'List', copyCode: 'Copy my code', pasteCode: "Paste partner's code", importBtn: 'Import',
     copied: 'Copied. Send it to your partner', imported: n=>`Imported, ${n} updated`, badCode: 'Invalid code. Check it was copied in full', sameName: 'That is your own code',
     otherPartner: 'That code is from a different person', noPartner: "Import your partner's code first to pick them as payer",
     partner: 'Partner', none: 'Not linked yet', lang: 'Language', nick: 'My nickname', cats: 'Categories', addCat: 'Add category',
     rename: 'Rename', catName: 'Category name', trend: 'Monthly spending', share: 'By category', nodata: 'No data', settledOn: 'Settled',
     nothingToSettle: 'No shared expenses to settle', nickLocked: 'Nickname is used for sync and cannot change',
     cat: {food:'Food',transport:'Transport',shopping:'Shopping',home:'Home',fun:'Fun',other:'Other',salary:'Salary','other-in':'Other'},
-    personalOnly: 'Stats cover personal entries only',
+    personalOnly: 'Personal stats exclude shared entries', sharedStatsNote: 'Shared stats include all shared spending by both of you, settled periods too',
     backup: 'Backup', backupHint: 'A backup holds everything, personal entries included. Make one before changing phones or deleting the app.', copyBackup: 'Copy backup code', downloadBackup: 'Download backup file', pasteBackup: 'Paste backup code', restore: 'Restore', restoreFile: 'Restore from file', restored: 'Restored', otherPerson: 'That backup belongs to a different person', restoreFrom: 'Restore from backup',
   },
 };
 
 let state = load();
-let ui = {tab: 0, month: ym(new Date())};
+let ui = {tab: 0, month: ym(new Date()), scope: 'personal', sub: 'settle'};
+const ICONS = [
+  '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/>',
+  '<circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.9 3.1-6 7-6s7 2.1 7 6"/><circle cx="17" cy="9" r="2.8"/><path d="M17.5 14.2c2.9.2 4.5 2 4.5 5.3"/>',
+  '<path d="M4 20V11M10 20V4M16 20v-6M22 20H2"/>',
+  '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>'
+];
 
 function load() {
   try {
@@ -121,11 +128,11 @@ const live = () => state.entries.filter(e => !e.deleted);
 function render() {
   if (!state.profile) return renderWelcome();
   document.documentElement.lang = state.lang === 'zh' ? 'zh-Hant' : 'en';
-  document.getElementById('nav').innerHTML = t().tabs.map((n, i) => `<button class="${i === ui.tab ? 'on' : ''}" data-tab="${i}">${n}</button>`).join('');
+  document.getElementById('nav').innerHTML = t().tabs.map((n, i) => `<button class="${i === ui.tab ? 'on' : ''}" data-tab="${i}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[i]}</svg>${n}</button>`).join('');
   const app = document.getElementById('app');
   app.innerHTML = [viewLog, viewShared, viewStats, viewSettings][ui.tab]();
   document.querySelector('.fab')?.remove();
-  if (ui.tab < 2) document.body.insertAdjacentHTML('beforeend', '<button class="primary fab" data-act="add" aria-label="add">+</button>');
+  if (ui.tab === 0 || (ui.tab === 1 && ui.sub === 'list')) document.body.insertAdjacentHTML('beforeend', '<button class="primary fab" data-act="add" aria-label="add">+</button>');
 }
 
 function renderWelcome() {
@@ -167,21 +174,24 @@ function viewShared() {
   const tr = bal.transfer;
   const head = !p ? `<span class="mute">${t().none}</span>` : tr.amount ? `<span class="${tr.from === me ? 'neg' : 'pos'}">${esc(t().owes(tr.from, tr.to, formatPence(tr.amount)))}</span>` : t().even;
   const hist = state.settlements.filter(s => !s.deleted).sort((a, b) => b.closedAt - a.closedAt);
-  return `<h1>${t().tabs[1]}</h1><div class="card"><div class="mute">${t().balance}</div><div class="big" style="font-size:20px">${head}</div>
+  const subBar = `<div class="seg" style="margin-bottom:12px">${[['settle', t().settleTab], ['list', t().listTab], ['sync', t().sync]].map(([k, n]) => `<button data-sub="${k}" class="${ui.sub === k ? 'on' : ''}">${n}</button>`).join('')}</div>`;
+  if (ui.sub === 'list') return `<h1>${t().tabs[1]}</h1>${subBar}<div class="card"><div class="mute">${t().total}</div><div class="big">${formatPence(bal.total)}</div><div class="mute">${t().items(open.length)}</div></div>
+    <div class="card">${open.length ? open.map(e => entryRow(e, true)).join('') : `<div class="mute">${t().empty}</div>`}</div>`;
+  if (ui.sub === 'sync') return `<h1>${t().tabs[1]}</h1>${subBar}<div class="card"><div class="row"><button class="grow" data-act="copy">${t().copyCode}</button></div>
+    <label>${t().pasteCode}</label><textarea id="code" spellcheck="false"></textarea>
+    <button style="margin-top:8px;width:100%" data-act="import">${t().importBtn}</button></div>`;
+  return `<h1>${t().tabs[1]}</h1>${subBar}<div class="card"><div class="mute">${t().balance}</div><div class="big" style="font-size:20px">${head}</div>
     <div class="mute" style="margin-top:6px">${t().total} ${formatPence(bal.total)} · ${t().items(open.length)}</div>
     ${[me, p].filter(Boolean).map(n => `<div class="mute">${esc(t().paidBy(n))} ${formatPence(bal.paid[n] || 0)}</div>`).join('')}
     <div class="row" style="margin-top:12px"><button class="primary grow" data-act="settle">${t().settle}</button></div></div>
-    <h2>${t().sync}</h2><div class="card"><div class="row"><button class="grow" data-act="copy">${t().copyCode}</button></div>
-    <label>${t().pasteCode}</label><textarea id="code" spellcheck="false"></textarea>
-    <button style="margin-top:8px;width:100%" data-act="import">${t().importBtn}</button></div>
-    <div class="card">${open.length ? open.map(e => entryRow(e, true)).join('') : `<div class="mute">${t().empty}</div>`}</div>
     <h2>${t().history}</h2><div class="card">${hist.length ? hist.map(s => `<div class="item" style="cursor:default"><div class="grow"><div>${new Date(s.closedAt).toLocaleDateString()}</div>
       <div class="mute">${t().total} ${formatPence(s.total)} · ${t().items(s.count)}</div></div>
       <div>${s.transfer.amount ? esc(t().owes(s.transfer.from, s.transfer.to, formatPence(s.transfer.amount))) : t().even}</div></div>`).join('') : `<div class="mute">${t().noHistory}</div>`}</div>`;
 }
 
 function viewStats() {
-  const mine = live().filter(e => !e.shared && e.type === 'expense');
+  const sharedScope = ui.scope === 'shared';
+  const mine = live().filter(e => !!e.shared === sharedScope && e.type === 'expense');
   const month = mine.filter(e => e.date.startsWith(ui.month));
   const byCat = {};
   month.forEach(e => byCat[e.cat] = (byCat[e.cat] || 0) + e.amount);
@@ -198,10 +208,11 @@ function viewStats() {
   const months = Array.from({length: 6}, (_, i) => shiftMonth(ui.month, i - 5));
   const sums = months.map(m => mine.filter(e => e.date.startsWith(m)).reduce((s, e) => s + e.amount, 0));
   const max = Math.max(...sums, 1);
-  return monthNav() + `<h2>${t().share}</h2><div class="card">${total ? `<div class="row"><svg viewBox="0 0 42 42" width="130" height="130">${donut}</svg>
+  const scopeBar = `<div class="seg" style="margin-bottom:12px"><button data-scope="personal" class="${sharedScope ? '' : 'on'}">${t().tabs[0]}</button><button data-scope="shared" class="${sharedScope ? 'on' : ''}">${t().tabs[1]}</button></div>`;
+  return scopeBar + monthNav() + `<h2>${t().share}</h2><div class="card">${total ? `<div class="row"><svg viewBox="0 0 42 42" width="130" height="130">${donut}</svg>
     <div class="grow">${slices.map(([id, v]) => `<div class="row mute"><span class="dot" style="background:${catColor(id)}"></span><span class="grow">${esc(catName(id))}</span><span>${Math.round(v / total * 100)}% · ${formatPence(v)}</span></div>`).join('')}</div></div>` : `<div class="mute">${t().nodata}</div>`}</div>
     <h2>${t().trend}</h2><div class="card"><div class="bars">${sums.map((v, i) => `<div><span>${v ? formatPence(v).replace('.00', '') : ''}</span><i style="height:${Math.round(v / max * 90)}px"></i>${months[i].slice(5)}</div>`).join('')}</div></div>
-    <p class="mute">${t().personalOnly}</p>`;
+    <p class="mute">${sharedScope ? t().sharedStatsNote : t().personalOnly}</p>`;
 }
 
 function viewSettings() {
@@ -315,10 +326,12 @@ document.addEventListener('change', async ev => {
 });
 
 document.addEventListener('click', async ev => {
-  const el = ev.target.closest('[data-tab],[data-month],[data-act],[data-edit],[data-lang],[data-rename],[data-addcat]');
+  const el = ev.target.closest('[data-tab],[data-sub],[data-scope],[data-month],[data-act],[data-edit],[data-lang],[data-rename],[data-addcat]');
   if (!el) return;
   const d = el.dataset;
   if (d.tab) { ui.tab = Number(d.tab); render(); }
+  else if (d.sub) { ui.sub = d.sub; render(); }
+  else if (d.scope) { ui.scope = d.scope; render(); }
   else if (d.month) { ui.month = shiftMonth(ui.month, Number(d.month)); render(); }
   else if (d.lang) set({lang: d.lang});
   else if (d.edit) openForm(state.entries.find(x => x.id === d.edit));
