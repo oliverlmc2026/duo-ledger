@@ -37,6 +37,10 @@ dialog::backdrop{background:#0006}
 .bars i{display:block;background:var(--accent);border-radius:4px 4px 0 0;min-height:2px}
 .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
 textarea{min-height:90px;font-family:ui-monospace,monospace;font-size:12px}
+input[type=date]{display:block;min-width:0;max-width:100%;min-height:44px;-webkit-appearance:none;appearance:none;text-align:left}
+input[type=date]::-webkit-date-and-time-value{text-align:left;min-height:1.2em}
+input[type=checkbox]{width:22px;height:22px;padding:0;flex:none}
+dialog{overflow-x:hidden}
 .btn-like{display:block;text-align:center;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px 14px;cursor:pointer;color:var(--ink);font-size:16px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:20px;font-size:14px;z-index:9}
 </style>
@@ -220,7 +224,7 @@ function openForm(entry) {
       <label>${t().category}</label><select name="cat">${cats.map(c => `<option value="${c.id}" ${c.id === e.cat ? 'selected' : ''}>${esc(catName(c.id))}</option>`).join('')}</select>
       <label>${t().date}</label><input type="date" name="date" value="${e.date}" required>
       <label>${t().note}</label><input name="note" value="${esc(e.note)}" autocomplete="off">
-      ${e.type === 'expense' ? `<label class="row" style="color:var(--ink)"><input type="checkbox" name="shared" style="width:auto" ${e.shared ? 'checked' : ''}>${t().shared}</label>` : ''}
+      ${e.type === 'expense' ? `<label class="row" style="color:var(--ink)"><input type="checkbox" name="shared" ${e.shared ? 'checked' : ''}>${t().shared}</label>` : ''}
       ${e.shared && e.type === 'expense' ? `<label>${t().payer}</label><select name="payer">${payers.map(n => `<option ${n === e.payer ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>${state.partner ? '' : `<div class="mute">${t().noPartner}</div>`}` : ''}
       <div class="row" style="margin-top:16px">${entry ? `<button type="button" class="danger" data-del>${t().del}</button>` : ''}<span class="grow"></span><button type="button" data-close>${t().cancel}</button><button class="primary" type="submit">${t().save}</button></div></form>`;
   };
