@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Duo Ledger</title>
+<style>
+:root{--bg:#f6f7f6;--card:#fff;--ink:#1c2321;--mute:#6b7773;--line:#e3e8e6;--accent:#0f766e;--accent-ink:#fff;--neg:#b42318;--pos:#067647}
+@media (prefers-color-scheme:dark){:root{--bg:#111514;--card:#1a201e;--ink:#e8eeec;--mute:#93a29d;--line:#2a3330;--accent:#2dd4bf;--accent-ink:#06201c;--neg:#f97066;--pos:#47cd89}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif;padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+main{max-width:560px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0 0 12px}h2{font-size:15px;margin:20px 0 8px;color:var(--mute);font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.row{display:flex;align-items:center;gap:10px}.grow{flex:1;min-width:0}.mute{color:var(--mute);font-size:13px}
+.big{font-size:26px;font-weight:700}.neg{color:var(--neg)}.pos{color:var(--pos)}
+button,select,input,textarea{font:inherit;color:inherit}
+button{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px 14px;cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button.danger{color:var(--neg)}button.small{padding:6px 10px;font-size:14px}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+label{display:block;font-size:13px;color:var(--mute);margin:12px 0 4px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;border-radius:0;background:none;padding:12px 4px;color:var(--mute);font-size:13px}
+nav button.on{color:var(--accent);font-weight:700}
+.item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.item:last-child{border:0}
+.fab{position:fixed;right:20px;bottom:calc(84px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;font-size:28px;padding:0;box-shadow:0 4px 12px #0003}
+.seg{display:flex;gap:6px}.seg button{flex:1}.seg button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+dialog{border:0;border-radius:16px;padding:16px;width:min(92vw,520px);background:var(--card);color:var(--ink);max-height:90vh}
+dialog::backdrop{background:#0006}
+.bars{display:flex;align-items:flex-end;gap:8px;height:120px}.bars div{flex:1;text-align:center;font-size:11px;color:var(--mute)}
+.bars i{display:block;background:var(--accent);border-radius:4px 4px 0 0;min-height:2px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+textarea{min-height:90px;font-family:ui-monospace,monospace;font-size:12px}
+.btn-like{display:block;text-align:center;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px 14px;cursor:pointer;color:var(--ink);font-size:16px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:20px;font-size:14px;z-index:9}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<nav id="nav"></nav>
+<script src="core.js"></script>
+<script>
+const {parsePence, formatPence, newId, computeBalance, currentShared} = Core;
+const STORE = 'duoledger:v1';
+const COLORS = ['#0f766e','#d97706','#7c3aed','#db2777','#2563eb','#65a30d','#dc2626','#0891b2'];
+
+const I18N = {
+  zh: {
+    tabs: ['記帳','共同','統計','設定'], welcome: '歡迎', nickPrompt: '請輸入你的暱稱', start: '開始',
+    expense: '支出', income: '收入', amount: '金額', category: '分類', date: '日期', note: '備註／商家',
+    shared: '共同帳（50/50）', payer: '誰墊付', save: '儲存', del: '刪除', cancel: '取消', empty: '這個月還沒有紀錄',
+    balance: '本期結餘', income_m: '本月收入', expense_m: '本月支出', net: '淨額',
+    owes: (a,b,p)=>`${a} 要補 ${p} 給 ${b}`, even: '兩人已打平', paidBy: n=>`${n} 墊付`, total: '本期共同支出',
+    settle: '結算', settleConfirm: '確認結算並封存這一期？', history: '歷史結算', noHistory: '還沒有結算紀錄',
+    items: n=>`${n} 筆`, sync: '同步', copyCode: '複製我的碼', pasteCode: '貼上對方的碼', importBtn: '匯入',
+    copied: '已複製，傳給對方吧', imported: n=>`已匯入，更新了 ${n} 筆`, badCode: '碼無效，請確認完整複製', sameName: '這是你自己的碼',
+    otherPartner: '這個碼來自另一位使用者', noPartner: '先匯入對方的碼，才能選對方為墊付者',
+    partner: '共同記帳對象', none: '尚未連結', lang: '語言', nick: '我的暱稱', cats: '分類管理', addCat: '新增分類',
+    rename: '改名', catName: '分類名稱', trend: '每月支出趨勢', share: '分類佔比', nodata: '沒有資料', settledOn: '結算於',
+    nothingToSettle: '沒有可結算的共同支出', nickLocked: '暱稱已用於同步，不能更改',
+    cat: {food:'飲食',transport:'交通',shopping:'購物',home:'住家',fun:'娛樂',other:'其他',salary:'薪資','other-in':'其他'},
+    personalOnly: '統計只含個人帳目',
+    backup: '備份', backupHint: '備份含全部資料（含個人帳目）。換手機或刪除 App 前請先備份。', copyBackup: '複製備份碼', downloadBackup: '下載備份檔', pasteBackup: '貼上備份碼', restore: '還原', restoreFile: '從檔案還原', restored: '已還原', otherPerson: '這份備份屬於另一位使用者', restoreFrom: '從備份還原',
+  },
+  en: {
+    tabs: ['Log','Shared','Stats','Settings'], welcome: 'Welcome', nickPrompt: 'Enter your nickname', start: 'Start',
+    expense: 'Expense', income: 'Income', amount: 'Amount', category: 'Category', date: 'Date', note: 'Note / merchant',
+    shared: 'Shared (50/50)', payer: 'Paid by', save: 'Save', del: 'Delete', cancel: 'Cancel', empty: 'Nothing this month',
+    balance: 'Current balance', income_m: 'Income', expense_m: 'Spent', net: 'Net',
+    owes: (a,b,p)=>`${a} owes ${b} ${p}`, even: 'All square', paidBy: n=>`${n} paid`, total: 'Shared spend this period',
+    settle: 'Settle up', settleConfirm: 'Settle and archive this period?', history: 'Settlement history', noHistory: 'No settlements yet',
+    items: n=>`${n} item${n===1?'':'s'}`, sync: 'Sync', copyCode: 'Copy my code', pasteCode: "Paste partner's code", importBtn: 'Import',
+    copied: 'Copied. Send it to your partner', imported: n=>`Imported, ${n} updated`, badCode: 'Invalid code. Check it was copied in full', sameName: 'That is your own code',
+    otherPartner: 'That code is from a different person', noPartner: "Import your partner's code first to pick them as payer",
+    partner: 'Partner', none: 'Not linked yet', lang: 'Language', nick: 'My nickname', cats: 'Categories', addCat: 'Add category',
+    rename: 'Rename', catName: 'Category name', trend: 'Monthly spending', share: 'By category', nodata: 'No data', settledOn: 'Settled',
+    nothingToSettle: 'No shared expenses to settle', nickLocked: 'Nickname is used for sync and cannot change',
+    cat: {food:'Food',transport:'Transport',shopping:'Shopping',home:'Home',fun:'Fun',other:'Other',salary:'Salary','other-in':'Other'},
+    personalOnly: 'Stats cover personal entries only',
+    backup: 'Backup', backupHint: 'A backup holds everything, personal entries included. Make one before changing phones or deleting the app.', copyBackup: 'Copy backup code', downloadBackup: 'Download backup file', pasteBackup: 'Paste backup code', restore: 'Restore', restoreFile: 'Restore from file', restored: 'Restored', otherPerson: 'That backup belongs to a different person', restoreFrom: 'Restore from backup',
+  },
+};
+
+let state = load();
+let ui = {tab: 0, month: ym(new Date())};
+
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORE));
+    if (s && s.profile) return s;
+  } catch (_) {}
+  return {profile: null, partner: null, lang: /^zh/i.test(navigator.language) ? 'zh' : 'en', categories: Core.BUILTIN_CATEGORIES.map(c => ({...c, name: null})), entries: [], settlements: []};
+}
+function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (_) {} }
+function set(patch) { state = {...state, ...patch}; save(); render(); }
+const t = () => I18N[state.lang];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function ym(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+function today() { const d = new Date(); return ym(d) + '-' + String(d.getDate()).padStart(2, '0'); }
+function shiftMonth(m, n) { const [y, mo] = m.split('-').map(Number); return ym(new Date(y, mo - 1 + n, 1)); }
+function catName(id) { const c = state.categories.find(c => c.id === id); return c ? (c.name || t().cat[c.id] || c.id) : t().cat.other; }
+function catColor(id) { const i = state.categories.findIndex(c => c.id === id); return COLORS[(i < 0 ? 5 : i) % COLORS.length]; }
+function toast(msg) { const el = document.createElement('div'); el.className = 'toast'; el.textContent = msg; document.body.append(el); setTimeout(() => el.remove(), 2400); }
+const live = () => state.entries.filter(e => !e.deleted);
+
+function render() {
+  if (!state.profile) return renderWelcome();
+  document.documentElement.lang = state.lang === 'zh' ? 'zh-Hant' : 'en';
+  document.getElementById('nav').innerHTML = t().tabs.map((n, i) => `<button class="${i === ui.tab ? 'on' : ''}" data-tab="${i}">${n}</button>`).join('');
+  const app = document.getElementById('app');
+  app.innerHTML = [viewLog, viewShared, viewStats, viewSettings][ui.tab]();
+  document.querySelector('.fab')?.remove();
+  if (ui.tab < 2) document.body.insertAdjacentHTML('beforeend', '<button class="primary fab" data-act="add" aria-label="add">+</button>');
+}
+
+function renderWelcome() {
+  document.getElementById('nav').innerHTML = '';
+  document.querySelector('.fab')?.remove();
+  document.getElementById('app').innerHTML = `<div class="card"><h1>${t().welcome} 👋</h1>
+    <div class="seg"><button data-lang="zh" class="${state.lang === 'zh' ? 'on' : ''}">繁中</button><button data-lang="en" class="${state.lang === 'en' ? 'on' : ''}">English</button></div>
+    <label>${t().nickPrompt}</label><input id="nick" maxlength="20" autocomplete="off"><p></p>
+    <button class="primary" data-act="start" style="width:100%">${t().start}</button></div>
+    <div class="card"><label>${t().restoreFrom}</label><textarea id="bk" spellcheck="false"></textarea>
+    <div class="row" style="margin-top:8px"><button class="grow" data-act="bk-restore">${t().restore}</button><label class="grow" style="margin:0"><input type="file" data-bkfile accept=".txt,text/plain" hidden><span class="btn-like">${t().restoreFile}</span></label></div></div>`;
+}
+
+function monthNav() {
+  return `<div class="row" style="margin-bottom:12px"><button class="small" data-month="-1">‹</button><div class="grow" style="text-align:center;font-weight:600">${ui.month}</div><button class="small" data-month="1">›</button></div>`;
+}
+
+function entryRow(e, showWho) {
+  const sign = e.type === 'income' ? '+' : '-';
+  const who = showWho ? ` · ${esc(t().paidBy(e.payer))}` : '';
+  return `<div class="item" data-edit="${e.id}"><span class="dot" style="margin-top:6px;background:${catColor(e.cat)}"></span>
+    <div class="grow"><div>${esc(e.note) || esc(catName(e.cat))}</div><div class="mute">${e.date} · ${esc(catName(e.cat))}${who}</div></div>
+    <div class="${e.type === 'income' ? 'pos' : ''}">${sign}${formatPence(e.amount)}</div></div>`;
+}
+
+function viewLog() {
+  const mine = live().filter(e => !e.shared && e.date.startsWith(ui.month)).sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt - a.updatedAt);
+  const inc = mine.filter(e => e.type === 'income').reduce((s, e) => s + e.amount, 0);
+  const exp = mine.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0);
+  return monthNav() + `<div class="card"><div class="mute">${t().net}</div><div class="big">${formatPence(inc - exp)}</div>
+    <div class="row mute"><span class="grow">${t().income_m} <b class="pos">${formatPence(inc)}</b></span><span>${t().expense_m} <b>${formatPence(exp)}</b></span></div></div>
+    <div class="card">${mine.length ? mine.map(e => entryRow(e, false)).join('') : `<div class="mute">${t().empty}</div>`}</div>`;
+}
+
+function viewShared() {
+  const open = currentShared(state.entries).sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt - a.updatedAt);
+  const me = state.profile.name, p = state.partner;
+  const bal = computeBalance(open, me, p);
+  const tr = bal.transfer;
+  const head = !p ? `<span class="mute">${t().none}</span>` : tr.amount ? `<span class="${tr.from === me ? 'neg' : 'pos'}">${esc(t().owes(tr.from, tr.to, formatPence(tr.amount)))}</span>` : t().even;
+  const hist = state.settlements.filter(s => !s.deleted).sort((a, b) => b.closedAt - a.closedAt);
+  return `<h1>${t().tabs[1]}</h1><div class="card"><div class="mute">${t().balance}</div><div class="big" style="font-size:20px">${head}</div>
+    <div class="mute" style="margin-top:6px">${t().total} ${formatPence(bal.total)} · ${t().items(open.length)}</div>
+    ${[me, p].filter(Boolean).map(n => `<div class="mute">${esc(t().paidBy(n))} ${formatPence(bal.paid[n] || 0)}</div>`).join('')}
+    <div class="row" style="margin-top:12px"><button class="primary grow" data-act="settle">${t().settle}</button></div></div>
+    <h2>${t().sync}</h2><div class="card"><div class="row"><button class="grow" data-act="copy">${t().copyCode}</button></div>
+    <label>${t().pasteCode}</label><textarea id="code" spellcheck="false"></textarea>
+    <button style="margin-top:8px;width:100%" data-act="import">${t().importBtn}</button></div>
+    <div class="card">${open.length ? open.map(e => entryRow(e, true)).join('') : `<div class="mute">${t().empty}</div>`}</div>
+    <h2>${t().history}</h2><div class="card">${hist.length ? hist.map(s => `<div class="item" style="cursor:default"><div class="grow"><div>${new Date(s.closedAt).toLocaleDateString()}</div>
+      <div class="mute">${t().total} ${formatPence(s.total)} · ${t().items(s.count)}</div></div>
+      <div>${s.transfer.amount ? esc(t().owes(s.transfer.from, s.transfer.to, formatPence(s.transfer.amount))) : t().even}</div></div>`).join('') : `<div class="mute">${t().noHistory}</div>`}</div>`;
+}
+
+function viewStats() {
+  const mine = live().filter(e => !e.shared && e.type === 'expense');
+  const month = mine.filter(e => e.date.startsWith(ui.month));
+  const byCat = {};
+  month.forEach(e => byCat[e.cat] = (byCat[e.cat] || 0) + e.amount);
+  const total = Object.values(byCat).reduce((a, b) => a + b, 0);
+  const slices = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+  let off = 0;
+  const R = 15.915;
+  const donut = slices.map(([id, v]) => {
+    const len = v / total * 100;
+    const s = `<circle r="${R}" cx="21" cy="21" fill="none" stroke="${catColor(id)}" stroke-width="7" stroke-dasharray="${len} ${100 - len}" stroke-dashoffset="${-off}" transform="rotate(-90 21 21)"/>`;
+    off += len;
+    return s;
+  }).join('');
+  const months = Array.from({length: 6}, (_, i) => shiftMonth(ui.month, i - 5));
+  const sums = months.map(m => mine.filter(e => e.date.startsWith(m)).reduce((s, e) => s + e.amount, 0));
+  const max = Math.max(...sums, 1);
+  return monthNav() + `<h2>${t().share}</h2><div class="card">${total ? `<div class="row"><svg viewBox="0 0 42 42" width="130" height="130">${donut}</svg>
+    <div class="grow">${slices.map(([id, v]) => `<div class="row mute"><span class="dot" style="background:${catColor(id)}"></span><span class="grow">${esc(catName(id))}</span><span>${Math.round(v / total * 100)}% · ${formatPence(v)}</span></div>`).join('')}</div></div>` : `<div class="mute">${t().nodata}</div>`}</div>
+    <h2>${t().trend}</h2><div class="card"><div class="bars">${sums.map((v, i) => `<div><span>${v ? formatPence(v).replace('.00', '') : ''}</span><i style="height:${Math.round(v / max * 90)}px"></i>${months[i].slice(5)}</div>`).join('')}</div></div>
+    <p class="mute">${t().personalOnly}</p>`;
+}
+
+function viewSettings() {
+  return `<h1>${t().tabs[3]}</h1><div class="card"><label>${t().lang}</label><div class="seg"><button data-lang="zh" class="${state.lang === 'zh' ? 'on' : ''}">繁中</button><button data-lang="en" class="${state.lang === 'en' ? 'on' : ''}">English</button></div>
+    <label>${t().nick}</label><div>${esc(state.profile.name)}</div><div class="mute">${t().nickLocked}</div>
+    <label>${t().partner}</label><div>${esc(state.partner) || `<span class="mute">${t().none}</span>`}</div></div>
+    <h2>${t().backup}</h2><div class="card"><div class="mute">${t().backupHint}</div>
+    <div class="row" style="margin-top:10px"><button class="grow" data-act="bk-copy">${t().copyBackup}</button><button class="grow" data-act="bk-download">${t().downloadBackup}</button></div>
+    <label>${t().pasteBackup}</label><textarea id="bk" spellcheck="false"></textarea>
+    <div class="row" style="margin-top:8px"><button class="grow" data-act="bk-restore">${t().restore}</button><label class="grow" style="margin:0"><input type="file" data-bkfile accept=".txt,text/plain" hidden><span class="btn-like">${t().restoreFile}</span></label></div></div>
+    <h2>${t().cats}</h2><div class="card">${state.categories.map(c => `<div class="row item" style="cursor:default"><span class="dot" style="background:${catColor(c.id)}"></span><div class="grow">${esc(catName(c.id))} <span class="mute">${c.kind === 'income' ? t().income : t().expense}</span></div><button class="small" data-rename="${c.id}">${t().rename}</button></div>`).join('')}
+    <div style="margin-top:10px" class="row"><button class="small grow" data-addcat="expense">${t().addCat} · ${t().expense}</button><button class="small grow" data-addcat="income">${t().addCat} · ${t().income}</button></div></div>`;
+}
+
+function openForm(entry) {
+  const e = entry || {type: 'expense', shared: ui.tab === 1, amount: 0, cat: 'food', date: today(), note: '', payer: state.profile.name};
+  const dlg = document.createElement('dialog');
+  const done = () => { dlg.close(); dlg.remove(); };
+  const draw = () => {
+    const cats = state.categories.filter(c => c.kind === e.type);
+    if (!cats.some(c => c.id === e.cat)) e.cat = cats[0].id;
+    const payers = [state.profile.name, state.partner].filter(Boolean);
+    dlg.innerHTML = `<form method="dialog" id="f"><div class="seg"><button type="button" data-type="expense" class="${e.type === 'expense' ? 'on' : ''}">${t().expense}</button><button type="button" data-type="income" class="${e.type === 'income' ? 'on' : ''}">${t().income}</button></div>
+      <label>${t().amount} (£)</label><input name="amount" inputmode="decimal" autocomplete="off" value="${e.amount ? (e.amount / 100).toFixed(2) : ''}" required>
+      <label>${t().category}</label><select name="cat">${cats.map(c => `<option value="${c.id}" ${c.id === e.cat ? 'selected' : ''}>${esc(catName(c.id))}</option>`).join('')}</select>
+      <label>${t().date}</label><input type="date" name="date" value="${e.date}" required>
+      <label>${t().note}</label><input name="note" value="${esc(e.note)}" autocomplete="off">
+      ${e.type === 'expense' ? `<label class="row" style="color:var(--ink)"><input type="checkbox" name="shared" style="width:auto" ${e.shared ? 'checked' : ''}>${t().shared}</label>` : ''}
+      ${e.shared && e.type === 'expense' ? `<label>${t().payer}</label><select name="payer">${payers.map(n => `<option ${n === e.payer ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>${state.partner ? '' : `<div class="mute">${t().noPartner}</div>`}` : ''}
+      <div class="row" style="margin-top:16px">${entry ? `<button type="button" class="danger" data-del>${t().del}</button>` : ''}<span class="grow"></span><button type="button" data-close>${t().cancel}</button><button class="primary" type="submit">${t().save}</button></div></form>`;
+  };
+  const read = () => {
+    const f = new FormData(dlg.querySelector('form'));
+    e.date = f.get('date'); e.note = f.get('note').trim(); e.cat = f.get('cat');
+    e.shared = e.type === 'expense' && f.has('shared');
+    if (e.shared) e.payer = f.get('payer') || state.profile.name;
+    return parsePence(f.get('amount'));
+  };
+  dlg.addEventListener('click', ev => {
+    const b = ev.target.closest('button');
+    const chk = ev.target.name === 'shared';
+    if (b?.dataset.type) { read(); e.type = b.dataset.type; if (e.type === 'income') e.shared = false; draw(); }
+    else if (chk) { read(); draw(); }
+    else if (b?.hasAttribute('data-close')) done();
+    else if (b?.hasAttribute('data-del')) { commit({...entry, deleted: true, updatedAt: Date.now()}); done(); }
+  });
+  dlg.addEventListener('submit', ev => {
+    ev.preventDefault();
+    const amount = parsePence(new FormData(dlg.querySelector('form')).get('amount'));
+    read();
+    if (!amount) { dlg.querySelector('[name=amount]').focus(); return; }
+    const now = Date.now();
+    commit(entry
+      ? {...entry, type: e.type, shared: e.shared, amount, cat: e.cat, date: e.date, note: e.note, payer: e.shared ? e.payer : entry.payer, updatedAt: now}
+      : {id: newId(), type: e.type, shared: e.shared, amount, cat: e.cat, date: e.date, note: e.note, payer: e.shared ? e.payer : state.profile.name, owner: state.profile.name, settlementId: null, deleted: false, updatedAt: now});
+    done();
+  });
+  dlg.addEventListener('close', () => dlg.remove());
+  draw();
+  document.body.append(dlg);
+  dlg.showModal();
+}
+
+function commit(entry) {
+  const i = state.entries.findIndex(x => x.id === entry.id);
+  const entries = i < 0 ? [...state.entries, entry] : state.entries.map((x, j) => j === i ? entry : x);
+  set({entries});
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch (_) {}
+  const ta = document.createElement('textarea');
+  ta.value = text; document.body.append(ta); ta.select();
+  const ok = document.execCommand('copy'); ta.remove(); return ok;
+}
+
+function restoreFrom(text) {
+  try {
+    set(Core.restoreBackup(state, Core.decodeBackup(text)));
+    toast(t().restored);
+  } catch (e) {
+    toast(e.message === 'other-person' ? t().otherPerson : t().badCode);
+  }
+}
+
+document.addEventListener('change', async ev => {
+  const f = ev.target.closest('[data-bkfile]')?.files[0];
+  if (f) restoreFrom(await f.text());
+});
+
+document.addEventListener('click', async ev => {
+  const el = ev.target.closest('[data-tab],[data-month],[data-act],[data-edit],[data-lang],[data-rename],[data-addcat]');
+  if (!el) return;
+  const d = el.dataset;
+  if (d.tab) { ui.tab = Number(d.tab); render(); }
+  else if (d.month) { ui.month = shiftMonth(ui.month, Number(d.month)); render(); }
+  else if (d.lang) set({lang: d.lang});
+  else if (d.edit) openForm(state.entries.find(x => x.id === d.edit));
+  else if (d.rename) {
+    const c = state.categories.find(c => c.id === d.rename);
+    const name = prompt(t().catName, catName(c.id));
+    if (name?.trim()) set({categories: state.categories.map(x => x.id === c.id ? {...x, name: name.trim()} : x)});
+  } else if (d.addcat) {
+    const name = prompt(t().catName);
+    if (name?.trim()) set({categories: [...state.categories, {id: 'c-' + newId(), kind: d.addcat, name: name.trim()}]});
+  } else if (d.act === 'add') openForm();
+  else if (d.act === 'start') {
+    const name = document.getElementById('nick').value.trim();
+    if (name) set({profile: {name}});
+  } else if (d.act === 'copy') {
+    if (await copyText(Core.encodeCode(Core.buildPayload(state)))) toast(t().copied);
+  } else if (d.act === 'import') {
+    try {
+      const r = Core.applyImport(state, Core.decodeCode(document.getElementById('code').value));
+      set(r.state);
+      toast(t().imported(r.changed));
+    } catch (e) {
+      toast({'bad-code': t().badCode, 'same-name': t().sameName, 'other-partner': t().otherPartner}[e.message] || t().badCode);
+    }
+  } else if (d.act === 'bk-copy') {
+    if (await copyText(Core.encodeBackup(state))) toast(t().copied);
+  } else if (d.act === 'bk-download') {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([Core.encodeBackup(state)], {type: 'text/plain'}));
+    a.download = `duoledger-backup-${today()}.txt`;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  } else if (d.act === 'bk-restore') {
+    restoreFrom(document.getElementById('bk').value);
+  } else if (d.act === 'settle') {
+    const r = Core.settle(state.entries, state.settlements, state.profile.name, state.partner, Date.now());
+    if (!r) return toast(t().nothingToSettle);
+    if (confirm(t().settleConfirm)) set({entries: r.entries, settlements: r.settlements});
+  }
+});
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+render();
+</script>
+</body>
+</html>
