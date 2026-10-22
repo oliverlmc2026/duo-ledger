@@ -77,6 +77,7 @@ const I18N = {
     cat: {food:'飲食',transport:'交通',shopping:'購物',home:'住家',fun:'娛樂',other:'其他',salary:'薪資','other-in':'其他'},
     personalOnly: '個人統計只含個人帳目，不含共同帳', sharedStatsNote: '共同統計包含兩人所有共同支出，已結算的也計算在內',
     backup: '備份', backupHint: '備份含全部資料（含個人帳目）。換手機或刪除 App 前請先備份。', copyBackup: '複製備份碼', downloadBackup: '下載備份檔', pasteBackup: '貼上備份碼', restore: '還原', restoreFile: '從檔案還原', restored: '已還原', otherPerson: '這份備份屬於另一位使用者', restoreFrom: '從備份還原',
+    danger: '危險區域', deleteAcct: '刪除帳戶', deleteHint: '清除這部手機上的全部資料（個人帳目、共同帳、結算紀錄、分類、暱稱），回到歡迎畫面。伴侶手機上已同步的共同帳不受影響。刪除前請先備份，刪除後無法復原。', deletePrompt: n=>`此操作無法復原。請輸入你的暱稱「${n}」確認刪除：`, deleted: '帳戶已刪除',
   },
   en: {
     tabs: ['Personal','Shared','Stats','Settings'], welcome: 'Welcome', nickPrompt: 'Enter your nickname', start: 'Start',
@@ -94,6 +95,7 @@ const I18N = {
     cat: {food:'Food',transport:'Transport',shopping:'Shopping',home:'Home',fun:'Fun',other:'Other',salary:'Salary','other-in':'Other'},
     personalOnly: 'Personal stats exclude shared entries', sharedStatsNote: 'Shared stats include all shared spending by both of you, settled periods too',
     backup: 'Backup', backupHint: 'A backup holds everything, personal entries included. Make one before changing phones or deleting the app.', copyBackup: 'Copy backup code', downloadBackup: 'Download backup file', pasteBackup: 'Paste backup code', restore: 'Restore', restoreFile: 'Restore from file', restored: 'Restored', otherPerson: 'That backup belongs to a different person', restoreFrom: 'Restore from backup',
+    danger: 'Danger zone', deleteAcct: 'Delete account', deleteHint: "Erases all data on this phone (personal entries, shared entries, settlements, categories, nickname) and returns to the welcome screen. Shared entries already synced to your partner's phone are not affected. Back up first. This cannot be undone.", deletePrompt: n=>`This cannot be undone. Type your nickname "${n}" to confirm:`, deleted: 'Account deleted',
   },
 };
 
@@ -106,12 +108,15 @@ const ICONS = [
   '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>'
 ];
 
+function fresh(lang = /^zh/i.test(navigator.language) ? 'zh' : 'en') {
+  return {profile: null, partner: null, lang, categories: Core.BUILTIN_CATEGORIES.map(c => ({...c, name: null})), entries: [], settlements: []};
+}
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem(STORE));
     if (s && s.profile) return s;
   } catch (_) {}
-  return {profile: null, partner: null, lang: /^zh/i.test(navigator.language) ? 'zh' : 'en', categories: Core.BUILTIN_CATEGORIES.map(c => ({...c, name: null})), entries: [], settlements: []};
+  return fresh();
 }
 function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (_) {} }
 function set(patch) { state = {...state, ...patch}; save(); render(); }
@@ -223,6 +228,7 @@ function viewSettings() {
     <div class="row" style="margin-top:10px"><button class="grow" data-act="bk-copy">${t().copyBackup}</button><button class="grow" data-act="bk-download">${t().downloadBackup}</button></div>
     <label>${t().pasteBackup}</label><textarea id="bk" spellcheck="false"></textarea>
     <div class="row" style="margin-top:8px"><button class="grow" data-act="bk-restore">${t().restore}</button><label class="grow" style="margin:0"><input type="file" data-bkfile accept=".txt,text/plain" hidden><span class="btn-like">${t().restoreFile}</span></label></div></div>
+    <h2>${t().danger}</h2><div class="card"><div class="mute">${t().deleteHint}</div><button class="danger" style="margin-top:10px;width:100%" data-act="delete-account">${t().deleteAcct}</button></div>
     <h2>${t().cats}</h2><div class="card">${state.categories.map(c => `<div class="row item" style="cursor:default"><span class="dot" style="background:${catColor(c.id)}"></span><div class="grow">${esc(catName(c.id))} <span class="mute">${c.kind === 'income' ? t().income : t().expense}</span></div><button class="small" data-rename="${c.id}">${t().rename}</button></div>`).join('')}
     <div style="margin-top:10px" class="row"><button class="small grow" data-addcat="expense">${t().addCat} · ${t().expense}</button><button class="small grow" data-addcat="income">${t().addCat} · ${t().income}</button></div></div>`;
 }
@@ -366,6 +372,13 @@ document.addEventListener('click', async ev => {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   } else if (d.act === 'bk-restore') {
     restoreFrom(document.getElementById('bk').value);
+  } else if (d.act === 'delete-account') {
+    if (prompt(t().deletePrompt(state.profile.name))?.trim() !== state.profile.name) return;
+    try { localStorage.removeItem(STORE); } catch (_) {}
+    ui = {tab: 0, month: ym(new Date()), scope: 'personal', sub: 'settle'};
+    state = fresh(state.lang);
+    render();
+    toast(t().deleted);
   } else if (d.act === 'settle') {
     const r = Core.settle(state.entries, state.settlements, state.profile.name, state.partner, Date.now());
     if (!r) return toast(t().nothingToSettle);
