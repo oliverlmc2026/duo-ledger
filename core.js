@@ -186,16 +186,18 @@
     };
   }
 
-  // Settled entries are archived locally and left out of the code so it stays bounded; the recent
-  // settlements carry their entry ids so the partner can close the same entries on their phone.
+  // The code carries open entries plus the entries of the latest settlements, so an entry settled
+  // before it was ever sent still reaches the partner; older periods stay local to keep it bounded.
   const SYNCED_SETTLEMENTS = 2;
 
   function buildPayload(state) {
+    const settlements = state.settlements.slice().sort((a, b) => b.closedAt - a.closedAt).slice(0, SYNCED_SETTLEMENTS);
+    const recent = new Set(settlements.map((s) => s.id));
     return {
       v: 1,
       from: state.profile.name,
-      entries: state.entries.filter((e) => e.shared && !e.settlementId),
-      settlements: state.settlements.slice().sort((a, b) => b.closedAt - a.closedAt).slice(0, SYNCED_SETTLEMENTS),
+      entries: state.entries.filter((e) => e.shared && (!e.settlementId || recent.has(e.settlementId))),
+      settlements,
     };
   }
 

@@ -135,13 +135,33 @@ test('decodeCode and decodeBackup accept a lowercased prefix as iOS Safari deliv
   assert.deepEqual(C.decodeBackup('dlb1:' + b.slice(5)), state);
 });
 
-test('code leaves out settled entries but still closes them on the partner phone', () => {
+test('code leaves out entries of settlements older than the latest two', () => {
+  let entries = [], settlements = [];
+  for (let i = 1; i <= 3; i++) {
+    entries = [...entries, e('p' + i, 'A', 10 * i)];
+    ({ entries, settlements } = C.settle(entries, settlements, 'A', 'B', i));
+  }
+  const payload = C.buildPayload({ profile: { name: 'A' }, entries: [...entries, e('open', 'A', 7)], settlements });
+  assert.deepEqual(payload.entries.map((x) => x.id).sort(), ['open', 'p2', 'p3']);
+});
+
+test('an entry settled before it was ever sent still reaches the partner', () => {
+  const synced = [e('1', 'A', 100, { date: '2026-10-01' }), e('2', 'B', 40, { date: '2026-10-02' })];
+  const aEntries = [...synced, e('x', 'A', 30, { date: '2026-10-03' })];
+  const settled = C.settle(aEntries, [], 'A', 'B', 10);
+  const aState = { profile: { name: 'A' }, partner: 'B', entries: settled.entries, settlements: settled.settlements };
+  const bState = { profile: { name: 'B' }, partner: 'A', entries: synced, settlements: [] };
+  const r = C.applyImport(bState, C.decodeCode(C.encodeCode(C.buildPayload(aState)))).state;
+  assert.deepEqual(C.settledEntries(r.entries, settled.settlement.id).map((x) => x.id).sort(), ['1', '2', 'x']);
+  assert.deepEqual(C.currentShared(r.entries), []);
+});
+
+test('code closes settled entries on the partner phone', () => {
   const mine = [e('1', 'A', 100), e('2', 'B', 40)];
   const settled = C.settle(mine, [], 'A', 'B', 10);
   const open = e('3', 'A', 7);
   const aState = { profile: { name: 'A' }, partner: 'B', entries: [...settled.entries, open], settlements: settled.settlements };
   const payload = C.buildPayload(aState);
-  assert.deepEqual(payload.entries.map((x) => x.id), ['3']);
   const bState = { profile: { name: 'B' }, partner: 'A', entries: mine, settlements: [] };
   const r = C.applyImport(bState, C.decodeCode(C.encodeCode(payload))).state;
   assert.deepEqual(r.entries.filter((x) => x.settlementId).map((x) => x.id).sort(), ['1', '2']);
@@ -162,7 +182,7 @@ test('code size stays bounded as settlements pile up', () => {
   let after5;
   for (let i = 1; i <= 20; i++) {
     entries = [...entries, e('a' + String(i).padStart(2, '0'), 'A', 100 + i), e('b' + String(i).padStart(2, '0'), 'B', 50 + i)];
-    const r = C.settle(entries, settlements, 'A', 'B', i);
+    const r = C.settle(entries, settlements, 'A', 'B', 1700000000000 + i);
     entries = r.entries; settlements = r.settlements;
     if (i === 5) after5 = size();
   }
