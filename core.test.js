@@ -111,3 +111,26 @@ test('restore keeps newer local edits and refuses another person', () => {
   assert.throws(() => C.restoreBackup(local, { ...old, profile: { name: 'Z' } }), /other-person/);
   assert.throws(() => C.decodeBackup(C.encodeCode({ v: 1, from: 'x', entries: [], settlements: [] })), /bad-code/);
 });
+
+test('decodeCode survives what chat apps and iOS paste add around a code', () => {
+  const p = { v: 1, from: 'A', entries: [{ id: 'x', note: '午餐', amount: 100 }], settlements: [] };
+  const c = C.encodeCode(p);
+  const mid = Math.floor(c.length / 2);
+  for (const wrapped of [
+    c.slice(0, mid) + '\n' + c.slice(mid),
+    c.slice(0, mid) + '​' + c.slice(mid),
+    '​' + c + '​',
+    '“' + c + '”',
+    '我的碼：' + c + ' 收到請回覆',
+  ]) assert.deepEqual(C.decodeCode(wrapped), p);
+  assert.throws(() => C.decodeCode('DL1:'), /bad-code/);
+});
+
+test('decodeCode and decodeBackup accept a lowercased prefix as iOS Safari delivers it', () => {
+  const p = { v: 1, from: 'A', entries: [], settlements: [] };
+  const c = C.encodeCode(p);
+  assert.deepEqual(C.decodeCode('dl1:' + c.slice(4)), p);
+  const state = { entries: [], settlements: [], categories: [] };
+  const b = C.encodeBackup(state);
+  assert.deepEqual(C.decodeBackup('dlb1:' + b.slice(5)), state);
+});

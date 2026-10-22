@@ -137,10 +137,12 @@
   }
 
   function decodeWith(prefix, text, isValid) {
-    const t = String(text).trim();
-    if (!t.startsWith(prefix)) throw new Error('bad-code');
+    // iOS Safari hands the prefix over lowercased ("dl1:"), and chat apps wrap, quote or pad the code.
+    const start = String(text).search(new RegExp(prefix, 'i'));
+    if (start < 0) throw new Error('bad-code');
+    const body = String(text).slice(start + prefix.length).replace(/[\s\u200b-\u200f\u2060\ufeff]+/g, '');
     try {
-      const b64 = t.slice(prefix.length).replace(/-/g, '+').replace(/_/g, '/');
+      const b64 = (body.match(/^[A-Za-z0-9_-]*/)[0]).replace(/-/g, '+').replace(/_/g, '/');
       const bin = atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4));
       const obj = JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))));
       if (!isValid(obj)) throw 0;
