@@ -74,6 +74,13 @@
     return entries.filter((e) => e.shared && !e.deleted && !e.settlementId);
   }
 
+  // Read-only view of one settled period: the entries on this phone that the settlement closed.
+  function settledEntries(entries, settlementId) {
+    return entries
+      .filter((e) => e.settlementId === settlementId && !e.deleted)
+      .sort((a, b) => b.date.localeCompare(a.date) || b.updatedAt - a.updatedAt);
+  }
+
   // Debtor (who paid less) absorbs the odd penny.
   function computeBalance(entries, me, partner) {
     const paid = { [me]: 0, [partner || '']: 0 };
@@ -214,5 +221,5 @@
     };
   }
 
-  return { BUILTIN_CATEGORIES, parsePence, evalPence, formatPence, newId, mergeById, currentShared, computeBalance, settle, encodeCode, decodeCode, encodeBackup, decodeBackup, restoreBackup, buildPayload, applyImport };
+  return { BUILTIN_CATEGORIES, parsePence, evalPence, formatPence, newId, mergeById, currentShared, settledEntries, computeBalance, settle, encodeCode, decodeCode, encodeBackup, decodeBackup, restoreBackup, buildPayload, applyImport };
 });

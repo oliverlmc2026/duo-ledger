@@ -149,6 +149,13 @@ test('code leaves out settled entries but still closes them on the partner phone
   assert.deepEqual(C.currentShared(r.entries).map((x) => x.id), ['3']);
 });
 
+test('settledEntries lists one period newest first, without other periods or open entries', () => {
+  const first = C.settle([e('1', 'A', 10, { date: '2026-10-01' }), e('2', 'B', 20, { date: '2026-10-03' })], [], 'A', 'B', 5);
+  const entries = [...first.entries, e('3', 'A', 30, { date: '2026-10-05' })];
+  assert.deepEqual(C.settledEntries(entries, first.settlement.id).map((x) => x.id), ['2', '1']);
+  assert.deepEqual(C.settledEntries(entries, 'nope'), []);
+});
+
 test('code size stays bounded as settlements pile up', () => {
   let entries = [], settlements = [];
   const size = () => C.encodeCode(C.buildPayload({ profile: { name: 'A' }, entries, settlements })).length;
