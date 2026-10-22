@@ -119,6 +119,7 @@
       paid: bal.paid,
       transfer: bal.transfer,
       count: open.length,
+      ids: open.map((e) => e.id).sort(),
       deleted: false,
     };
     const ids = new Set(open.map((e) => e.id));
@@ -178,13 +179,26 @@
     };
   }
 
+  // Settled entries are archived locally and left out of the code so it stays bounded; the recent
+  // settlements carry their entry ids so the partner can close the same entries on their phone.
+  const SYNCED_SETTLEMENTS = 2;
+
   function buildPayload(state) {
     return {
       v: 1,
       from: state.profile.name,
-      entries: state.entries.filter((e) => e.shared),
-      settlements: state.settlements,
+      entries: state.entries.filter((e) => e.shared && !e.settlementId),
+      settlements: state.settlements.slice().sort((a, b) => b.closedAt - a.closedAt).slice(0, SYNCED_SETTLEMENTS),
     };
+  }
+
+  function closeSettled(entries, settlements) {
+    const byEntry = new Map();
+    for (const s of settlements) for (const id of s.ids || []) byEntry.set(id, s);
+    return entries.map((e) => {
+      const s = !e.settlementId && byEntry.get(e.id);
+      return s ? { ...e, settlementId: s.id } : e;
+    });
   }
 
   function applyImport(state, payload) {
@@ -192,9 +206,11 @@
     if (state.partner && state.partner !== payload.from) throw new Error('other-partner');
     const e = mergeById(state.entries, payload.entries);
     const s = mergeById(state.settlements, payload.settlements);
+    const closed = closeSettled(e.records, s.records);
+    const closedCount = closed.filter((x, i) => x !== e.records[i]).length;
     return {
-      state: { ...state, partner: payload.from, entries: e.records, settlements: s.records },
-      changed: e.changed + s.changed,
+      state: { ...state, partner: payload.from, entries: closed, settlements: s.records },
+      changed: e.changed + s.changed + closedCount,
     };
   }
 

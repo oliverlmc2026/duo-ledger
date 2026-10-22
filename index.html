@@ -17,6 +17,8 @@ main{max-width:560px;margin:0 auto;padding:16px}
 h1{font-size:20px;margin:0 0 12px}h2{font-size:15px;margin:20px 0 8px;color:var(--mute);font-weight:600}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
 .row{display:flex;align-items:center;gap:10px}.grow{flex:1;min-width:0}.mute{color:var(--mute);font-size:13px}
+.notice{margin-top:12px;padding:10px 12px;border-radius:10px;border:1px solid #f59e0b;background:#f59e0b24;color:var(--ink);font-weight:600;font-size:15px}
+.guide{padding:8px 0;border-bottom:1px solid var(--line)}.guide:last-child{border:0}.guide summary{cursor:pointer;font-weight:600}.guide .mute{margin-top:6px;font-size:14px;line-height:1.5}
 .big{font-size:26px;font-weight:700}.neg{color:var(--neg)}.pos{color:var(--pos)}
 button,select,input,textarea{font:inherit;color:inherit}
 button{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px 14px;cursor:pointer}
@@ -63,11 +65,19 @@ const COLORS = ['#0f766e','#d97706','#7c3aed','#db2777','#2563eb','#65a30d','#dc
 const I18N = {
   zh: {
     tabs: ['個人','共同','統計','設定'], welcome: '歡迎', nickPrompt: '請輸入你的暱稱', start: '開始',
+    guideTitle: '使用說明', guide: [
+      ['個人記帳', '在「個人」分頁按右下角 +，選支出或收入，填金額、分類、日期和備註。金額欄可以直接打算式，例如 12+3.5×2。點任何一筆可以修改或刪除。'],
+      ['共同記帳', '新增時勾選「共同帳（50/50）」並選誰墊付，兩人永遠平均分攤。「共同」分頁會顯示誰要補多少給誰。要先和伴侶交換過一次碼，才能選到對方。'],
+      ['和伴侶同步', '在「共同」分頁的「同步」頁按「複製我的碼」，用 WhatsApp 等傳給伴侶。收到對方的碼就貼在「貼上對方的碼」，按「匯入」。兩人都要做一次，帳才會一致。'],
+      ['結算', '結算前請先和伴侶交換碼，確認兩邊帳目一致，再各自按「結算」。這一期會封存成歷史紀錄，已結算的舊帳不會再放進分享碼，碼不會越來越長。'],
+      ['統計', '「統計」分頁顯示當月分類佔比和近六個月支出趨勢，可切換個人或共同。'],
+      ['備份', '資料只存在這部手機。換手機或刪除 App 前，請在下面「備份」複製備份碼或下載備份檔，並自己保管。'],
+    ],
     expense: '支出', income: '收入', amount: '金額', amountHint: '最多小數點後兩位', category: '分類', date: '日期', note: '備註／商家',
     shared: '共同帳（50/50）', payer: '誰墊付', save: '儲存', del: '刪除', cancel: '取消', empty: '這個月還沒有紀錄',
     balance: '本期結餘', income_m: '本月收入', expense_m: '本月支出', net: '淨額',
     owes: (a,b,p)=>`${a} 要補 ${p} 給 ${b}`, even: '兩人已打平', paidBy: n=>`${n} 墊付`, total: '本期共同支出',
-    settle: '結算', settleConfirm: '確認結算並封存這一期？', history: '歷史結算', noHistory: '還沒有結算紀錄',
+    settle: '結算', settleHint: '結算前請先和伴侶交換碼，確認兩邊帳目一致。', settleConfirm: '結算前請先和伴侶交換碼，確認兩邊帳目一致。確認結算並封存這一期？', history: '歷史結算', noHistory: '還沒有結算紀錄',
     items: n=>`${n} 筆`, sync: '同步', settleTab: '結算', listTab: '顯示', copyCode: '複製我的碼', pasteCode: '貼上對方的碼', importBtn: '匯入',
     copied: '已複製，傳給對方吧', imported: n=>`已匯入，更新了 ${n} 筆`, badCode: '碼無效，請確認完整複製', sameName: '這是你自己的碼',
     otherPartner: '這個碼來自另一位使用者', noPartner: '先匯入對方的碼，才能選對方為墊付者',
@@ -81,11 +91,19 @@ const I18N = {
   },
   en: {
     tabs: ['Personal','Shared','Stats','Settings'], welcome: 'Welcome', nickPrompt: 'Enter your nickname', start: 'Start',
+    guideTitle: 'How to use', guide: [
+      ['Personal entries', 'On the Personal tab tap + at the bottom right, pick expense or income, then fill in amount, category, date and note. The amount field takes sums such as 12+3.5×2. Tap any entry to edit or delete it.'],
+      ['Shared entries', 'Tick "Shared (50/50)" and choose who paid. Everything is always split evenly, and the Shared tab shows who owes whom. Swap codes with your partner once first so you can pick them as payer.'],
+      ['Syncing with your partner', 'On Shared > Sync tap "Copy my code" and send it by WhatsApp or similar. Paste the code you receive into "Paste partner\'s code" and tap Import. Both of you need to do this for the books to match.'],
+      ['Settling up', 'Before settling, swap codes with your partner so both phones match, then each tap Settle. The period is archived into history, and settled entries are no longer put in the share code, so the code stays short.'],
+      ['Stats', 'The Stats tab shows this month by category and the last six months of spending, for personal or shared.'],
+      ['Backup', 'Your data lives only on this phone. Before changing phones or deleting the app, copy a backup code or download a backup file under Backup below, and keep it safe.'],
+    ],
     expense: 'Expense', income: 'Income', amount: 'Amount', amountHint: 'max 2 decimal places', category: 'Category', date: 'Date', note: 'Note / merchant',
     shared: 'Shared (50/50)', payer: 'Paid by', save: 'Save', del: 'Delete', cancel: 'Cancel', empty: 'Nothing this month',
     balance: 'Current balance', income_m: 'Income', expense_m: 'Spent', net: 'Net',
     owes: (a,b,p)=>`${a} owes ${b} ${p}`, even: 'All square', paidBy: n=>`${n} paid`, total: 'Shared spend this period',
-    settle: 'Settle up', settleConfirm: 'Settle and archive this period?', history: 'Settlement history', noHistory: 'No settlements yet',
+    settle: 'Settle up', settleHint: 'Before settling, swap codes with your partner so both phones match.', settleConfirm: 'Before settling, swap codes with your partner so both phones match. Settle and archive this period?', history: 'Settlement history', noHistory: 'No settlements yet',
     items: n=>`${n} item${n===1?'':'s'}`, sync: 'Sync', settleTab: 'Settle', listTab: 'List', copyCode: 'Copy my code', pasteCode: "Paste partner's code", importBtn: 'Import',
     copied: 'Copied. Send it to your partner', imported: n=>`Imported, ${n} updated`, badCode: 'Invalid code. Check it was copied in full', sameName: 'That is your own code',
     otherPartner: 'That code is from a different person', noPartner: "Import your partner's code first to pick them as payer",
@@ -100,7 +118,7 @@ const I18N = {
 };
 
 let state = load();
-let ui = {tab: 0, month: ym(new Date()), scope: 'personal', sub: 'settle'};
+let ui = {tab: 0, month: ym(new Date()), scope: 'personal', sub: 'list'};
 const ICONS = [
   '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/>',
   '<circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.9 3.1-6 7-6s7 2.1 7 6"/><circle cx="17" cy="9" r="2.8"/><path d="M17.5 14.2c2.9.2 4.5 2 4.5 5.3"/>',
@@ -188,6 +206,7 @@ function viewShared() {
   return `<h1>${t().tabs[1]}</h1>${subBar}<div class="card"><div class="mute">${t().balance}</div><div class="big" style="font-size:20px">${head}</div>
     <div class="mute" style="margin-top:6px">${t().total} ${formatPence(bal.total)} · ${t().items(open.length)}</div>
     ${[me, p].filter(Boolean).map(n => `<div class="mute">${esc(t().paidBy(n))} ${formatPence(bal.paid[n] || 0)}</div>`).join('')}
+    <div class="notice">⚠️ ${t().settleHint}</div>
     <div class="row" style="margin-top:12px"><button class="primary grow" data-act="settle">${t().settle}</button></div></div>
     <h2>${t().history}</h2><div class="card">${hist.length ? hist.map(s => `<div class="item" style="cursor:default"><div class="grow"><div>${new Date(s.closedAt).toLocaleDateString()}</div>
       <div class="mute">${t().total} ${formatPence(s.total)} · ${t().items(s.count)}</div></div>
@@ -224,6 +243,7 @@ function viewSettings() {
   return `<h1>${t().tabs[3]}</h1><div class="card"><label>${t().lang}</label><div class="seg"><button data-lang="zh" class="${state.lang === 'zh' ? 'on' : ''}">繁中</button><button data-lang="en" class="${state.lang === 'en' ? 'on' : ''}">English</button></div>
     <label>${t().nick}</label><div>${esc(state.profile.name)}</div><div class="mute">${t().nickLocked}</div>
     <label>${t().partner}</label><div>${esc(state.partner) || `<span class="mute">${t().none}</span>`}</div></div>
+    <h2>${t().guideTitle}</h2><div class="card">${t().guide.map(([h, p]) => `<details class="guide"><summary>${h}</summary><div class="mute">${p}</div></details>`).join('')}</div>
     <h2>${t().backup}</h2><div class="card"><div class="mute">${t().backupHint}</div>
     <div class="row" style="margin-top:10px"><button class="grow" data-act="bk-copy">${t().copyBackup}</button><button class="grow" data-act="bk-download">${t().downloadBackup}</button></div>
     <label>${t().pasteBackup}</label><textarea id="bk" spellcheck="false"></textarea>
@@ -310,6 +330,17 @@ function commit(entry) {
   set({entries});
 }
 
+function openSettleConfirm(onOk) {
+  const dlg = document.createElement('dialog');
+  dlg.innerHTML = `<form method="dialog"><div>${esc(t().settleConfirm)}</div>
+    <div class="row" style="margin-top:16px"><span class="grow"></span><button type="button" data-close>${t().cancel}</button><button class="primary" type="submit">${t().settle}</button></div></form>`;
+  dlg.addEventListener('click', ev => { if (ev.target.closest('[data-close]')) dlg.close(); });
+  dlg.addEventListener('submit', ev => { ev.preventDefault(); dlg.close(); onOk(); });
+  dlg.addEventListener('close', () => dlg.remove());
+  document.body.append(dlg);
+  dlg.showModal();
+}
+
 function openDeleteAccount() {
   const dlg = document.createElement('dialog');
   dlg.innerHTML = `<form method="dialog"><div>${esc(t().deletePrompt(state.profile.name))}</div>
@@ -320,7 +351,7 @@ function openDeleteAccount() {
     ev.preventDefault();
     if (dlg.querySelector('[name=nick]').value.trim() !== state.profile.name) return dlg.querySelector('[name=nick]').focus();
     try { localStorage.removeItem(STORE); } catch (_) {}
-    ui = {tab: 0, month: ym(new Date()), scope: 'personal', sub: 'settle'};
+    ui = {tab: 0, month: ym(new Date()), scope: 'personal', sub: 'list'};
     state = fresh(state.lang);
     dlg.close();
     render();
@@ -398,7 +429,7 @@ document.addEventListener('click', async ev => {
   } else if (d.act === 'settle') {
     const r = Core.settle(state.entries, state.settlements, state.profile.name, state.partner, Date.now());
     if (!r) return toast(t().nothingToSettle);
-    if (confirm(t().settleConfirm)) set({entries: r.entries, settlements: r.settlements});
+    openSettleConfirm(() => set({entries: r.entries, settlements: r.settlements}));
   }
 });
 

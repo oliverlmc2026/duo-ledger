@@ -134,3 +134,30 @@ test('decodeCode and decodeBackup accept a lowercased prefix as iOS Safari deliv
   const b = C.encodeBackup(state);
   assert.deepEqual(C.decodeBackup('dlb1:' + b.slice(5)), state);
 });
+
+test('code leaves out settled entries but still closes them on the partner phone', () => {
+  const mine = [e('1', 'A', 100), e('2', 'B', 40)];
+  const settled = C.settle(mine, [], 'A', 'B', 10);
+  const open = e('3', 'A', 7);
+  const aState = { profile: { name: 'A' }, partner: 'B', entries: [...settled.entries, open], settlements: settled.settlements };
+  const payload = C.buildPayload(aState);
+  assert.deepEqual(payload.entries.map((x) => x.id), ['3']);
+  const bState = { profile: { name: 'B' }, partner: 'A', entries: mine, settlements: [] };
+  const r = C.applyImport(bState, C.decodeCode(C.encodeCode(payload))).state;
+  assert.deepEqual(r.entries.filter((x) => x.settlementId).map((x) => x.id).sort(), ['1', '2']);
+  assert.equal(r.settlements.length, 1);
+  assert.deepEqual(C.currentShared(r.entries).map((x) => x.id), ['3']);
+});
+
+test('code size stays bounded as settlements pile up', () => {
+  let entries = [], settlements = [];
+  const size = () => C.encodeCode(C.buildPayload({ profile: { name: 'A' }, entries, settlements })).length;
+  let after5;
+  for (let i = 1; i <= 20; i++) {
+    entries = [...entries, e('a' + String(i).padStart(2, '0'), 'A', 100 + i), e('b' + String(i).padStart(2, '0'), 'B', 50 + i)];
+    const r = C.settle(entries, settlements, 'A', 'B', i);
+    entries = r.entries; settlements = r.settlements;
+    if (i === 5) after5 = size();
+  }
+  assert.ok(size() <= after5 + 8);
+});
