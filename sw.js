@@ -1,4 +1,4 @@
-const CACHE = 'duo-ledger-v14';
+const CACHE = 'duo-ledger-v15';
 const ASSETS = ['./', 'index.html', 'core.js', 'manifest.webmanifest', 'icon.svg', 'icon-180.png', 'icon-512.png'];
 
 self.addEventListener('install', (e) => {
