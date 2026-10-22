@@ -77,7 +77,7 @@ const I18N = {
     cat: {food:'飲食',transport:'交通',shopping:'購物',home:'住家',fun:'娛樂',other:'其他',salary:'薪資','other-in':'其他'},
     personalOnly: '個人統計只含個人帳目，不含共同帳', sharedStatsNote: '共同統計包含兩人所有共同支出，已結算的也計算在內',
     backup: '備份', backupHint: '備份含全部資料（含個人帳目）。換手機或刪除 App 前請先備份。', copyBackup: '複製備份碼', downloadBackup: '下載備份檔', pasteBackup: '貼上備份碼', restore: '還原', restoreFile: '從檔案還原', restored: '已還原', otherPerson: '這份備份屬於另一位使用者', restoreFrom: '從備份還原',
-    danger: '危險區域', deleteAcct: '刪除帳戶', deleteHint: '清除這部手機上的全部資料（個人帳目、共同帳、結算紀錄、分類、暱稱），回到歡迎畫面。伴侶手機上已同步的共同帳不受影響。刪除前請先備份，刪除後無法復原。', deletePrompt: n=>`此操作無法復原。請輸入你的暱稱「${n}」確認刪除：`, deleted: '帳戶已刪除',
+    danger: '危險區域', deleteAcct: '刪除帳戶', deleteHint: '清除這部手機上的全部資料（個人帳目、共同帳、結算紀錄、分類、暱稱），回到歡迎畫面。伴侶手機上已同步的共同帳不受影響。刪除前請先備份，刪除後無法復原。', deletePrompt: n=>`此操作無法復原。請輸入你的暱稱「${n}」確認刪除`, deleted: '帳戶已刪除',
   },
   en: {
     tabs: ['Personal','Shared','Stats','Settings'], welcome: 'Welcome', nickPrompt: 'Enter your nickname', start: 'Start',
@@ -95,7 +95,7 @@ const I18N = {
     cat: {food:'Food',transport:'Transport',shopping:'Shopping',home:'Home',fun:'Fun',other:'Other',salary:'Salary','other-in':'Other'},
     personalOnly: 'Personal stats exclude shared entries', sharedStatsNote: 'Shared stats include all shared spending by both of you, settled periods too',
     backup: 'Backup', backupHint: 'A backup holds everything, personal entries included. Make one before changing phones or deleting the app.', copyBackup: 'Copy backup code', downloadBackup: 'Download backup file', pasteBackup: 'Paste backup code', restore: 'Restore', restoreFile: 'Restore from file', restored: 'Restored', otherPerson: 'That backup belongs to a different person', restoreFrom: 'Restore from backup',
-    danger: 'Danger zone', deleteAcct: 'Delete account', deleteHint: "Erases all data on this phone (personal entries, shared entries, settlements, categories, nickname) and returns to the welcome screen. Shared entries already synced to your partner's phone are not affected. Back up first. This cannot be undone.", deletePrompt: n=>`This cannot be undone. Type your nickname "${n}" to confirm:`, deleted: 'Account deleted',
+    danger: 'Danger zone', deleteAcct: 'Delete account', deleteHint: "Erases all data on this phone (personal entries, shared entries, settlements, categories, nickname) and returns to the welcome screen. Shared entries already synced to your partner's phone are not affected. Back up first. This cannot be undone.", deletePrompt: n=>`This cannot be undone. Type your nickname "${n}" to confirm`, deleted: 'Account deleted',
   },
 };
 
@@ -310,6 +310,27 @@ function commit(entry) {
   set({entries});
 }
 
+function openDeleteAccount() {
+  const dlg = document.createElement('dialog');
+  dlg.innerHTML = `<form method="dialog"><div>${esc(t().deletePrompt(state.profile.name))}</div>
+    <input name="nick" autocomplete="off" style="margin-top:10px">
+    <div class="row" style="margin-top:16px"><span class="grow"></span><button type="button" data-close>${t().cancel}</button><button class="danger" type="submit">${t().deleteAcct}</button></div></form>`;
+  dlg.addEventListener('click', ev => { if (ev.target.closest('[data-close]')) dlg.close(); });
+  dlg.addEventListener('submit', ev => {
+    ev.preventDefault();
+    if (dlg.querySelector('[name=nick]').value.trim() !== state.profile.name) return dlg.querySelector('[name=nick]').focus();
+    try { localStorage.removeItem(STORE); } catch (_) {}
+    ui = {tab: 0, month: ym(new Date()), scope: 'personal', sub: 'settle'};
+    state = fresh(state.lang);
+    dlg.close();
+    render();
+    toast(t().deleted);
+  });
+  dlg.addEventListener('close', () => dlg.remove());
+  document.body.append(dlg);
+  dlg.showModal();
+}
+
 async function copyText(text) {
   try { await navigator.clipboard.writeText(text); return true; } catch (_) {}
   const ta = document.createElement('textarea');
@@ -373,12 +394,7 @@ document.addEventListener('click', async ev => {
   } else if (d.act === 'bk-restore') {
     restoreFrom(document.getElementById('bk').value);
   } else if (d.act === 'delete-account') {
-    if (prompt(t().deletePrompt(state.profile.name))?.trim() !== state.profile.name) return;
-    try { localStorage.removeItem(STORE); } catch (_) {}
-    ui = {tab: 0, month: ym(new Date()), scope: 'personal', sub: 'settle'};
-    state = fresh(state.lang);
-    render();
-    toast(t().deleted);
+    openDeleteAccount();
   } else if (d.act === 'settle') {
     const r = Core.settle(state.entries, state.settlements, state.profile.name, state.partner, Date.now());
     if (!r) return toast(t().nothingToSettle);
