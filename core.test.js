@@ -176,6 +176,25 @@ test('settledEntries lists one period newest first, without other periods or ope
   assert.deepEqual(C.settledEntries(entries, 'nope'), []);
 });
 
+test('deleted shared entries age out of the code with the period they were settled in', () => {
+  let entries = [], settlements = [];
+  for (let i = 1; i <= 3; i++) {
+    entries = [...entries, e('k' + i, 'A', 100), e('d' + i, 'A', 50, { deleted: true })];
+    ({ entries, settlements } = C.settle(entries, settlements, 'A', 'B', 1700000000000 + i));
+  }
+  const payload = C.buildPayload({ profile: { name: 'A' }, entries, settlements });
+  assert.deepEqual(payload.entries.filter((x) => x.deleted).map((x) => x.id).sort(), ['d2', 'd3']);
+  assert.deepEqual(settlements.find((s) => s.closedAt === 1700000000003).ids, ['k3']);
+});
+
+test('a deletion settled away still reaches the partner', () => {
+  const settled = C.settle([e('k', 'A', 100), e('d', 'A', 50, { deleted: true, updatedAt: 2 })], [], 'A', 'B', 10);
+  const aState = { profile: { name: 'A' }, partner: 'B', entries: settled.entries, settlements: settled.settlements };
+  const bState = { profile: { name: 'B' }, partner: 'A', entries: [e('k', 'A', 100), e('d', 'A', 50)], settlements: [] };
+  const r = C.applyImport(bState, C.decodeCode(C.encodeCode(C.buildPayload(aState)))).state;
+  assert.equal(r.entries.find((x) => x.id === 'd').deleted, true);
+});
+
 test('code size stays bounded as settlements pile up', () => {
   let entries = [], settlements = [];
   const size = () => C.encodeCode(C.buildPayload({ profile: { name: 'A' }, entries, settlements })).length;

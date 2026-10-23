@@ -130,9 +130,11 @@
       deleted: false,
     };
     const ids = new Set(open.map((e) => e.id));
+    // Deleted shared entries join the period too, so their tombstones age out of the share code with it.
+    const closes = (e) => ids.has(e.id) || (e.shared && e.deleted && !e.settlementId);
     return {
       settlement,
-      entries: entries.map((e) => (ids.has(e.id) ? { ...e, settlementId: id, updatedAt: now } : e)),
+      entries: entries.map((e) => (closes(e) ? { ...e, settlementId: id, updatedAt: now } : e)),
       settlements: mergeById(settlements, [settlement]).records,
     };
   }
