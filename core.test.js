@@ -195,6 +195,22 @@ test('a deletion settled away still reaches the partner', () => {
   assert.equal(r.entries.find((x) => x.id === 'd').deleted, true);
 });
 
+test('open shared changes count as unsent until the code is sent', () => {
+  let state = { profile: { name: 'A' }, partner: 'B', entries: [e('1', 'A', 10), e('p', 'A', 5, { shared: false })], settlements: [] };
+  assert.deepEqual(C.unsentEntries(state).map((x) => x.id), ['1']);
+  state = C.markSent(state, C.buildPayload(state));
+  assert.deepEqual(C.unsentEntries(state), []);
+  state = { ...state, entries: state.entries.map((x) => (x.id === '1' ? { ...x, deleted: true, updatedAt: 2 } : x)) };
+  assert.deepEqual(C.unsentEntries(state).map((x) => x.id), ['1']);
+});
+
+test('entries received from the partner are not unsent, but a newer local edit still is', () => {
+  const a = { profile: { name: 'A' }, partner: 'B', entries: [e('mine', 'A', 10, { updatedAt: 9 })], settlements: [] };
+  const payload = { v: 1, from: 'B', entries: [e('theirs', 'B', 20, { updatedAt: 5 }), e('mine', 'A', 10, { updatedAt: 3 })], settlements: [] };
+  const r = C.applyImport(a, payload).state;
+  assert.deepEqual(C.unsentEntries(r).map((x) => x.id), ['mine']);
+});
+
 test('code size stays bounded as settlements pile up', () => {
   let entries = [], settlements = [];
   const size = () => C.encodeCode(C.buildPayload({ profile: { name: 'A' }, entries, settlements })).length;

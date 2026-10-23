@@ -212,6 +212,17 @@
     });
   }
 
+  // state.synced maps entry id -> updatedAt for each version the partner is known to hold, because we
+  // sent it or they sent it to us. Settling waits until every open shared change is in there.
+  function markSent(state, payload) {
+    return { ...state, synced: Object.fromEntries(payload.entries.map((e) => [e.id, e.updatedAt])) };
+  }
+
+  function unsentEntries(state) {
+    const synced = state.synced || {};
+    return state.entries.filter((e) => e.shared && !e.settlementId && synced[e.id] !== e.updatedAt);
+  }
+
   function applyImport(state, payload) {
     if (payload.from === state.profile.name) throw new Error('same-name');
     if (state.partner && state.partner !== payload.from) throw new Error('other-partner');
@@ -219,11 +230,14 @@
     const s = mergeById(state.settlements, payload.settlements);
     const closed = closeSettled(e.records, s.records);
     const closedCount = closed.filter((x, i) => x !== e.records[i]).length;
+    const merged = new Map(e.records.map((r) => [r.id, r]));
+    const received = payload.entries.filter((r) => merged.get(r.id).updatedAt === r.updatedAt);
+    const synced = { ...(state.synced || {}), ...Object.fromEntries(received.map((r) => [r.id, r.updatedAt])) };
     return {
-      state: { ...state, partner: payload.from, entries: closed, settlements: s.records },
+      state: { ...state, partner: payload.from, entries: closed, settlements: s.records, synced },
       changed: e.changed + s.changed + closedCount,
     };
   }
 
-  return { BUILTIN_CATEGORIES, parsePence, evalPence, formatPence, newId, mergeById, currentShared, settledEntries, computeBalance, settle, encodeCode, decodeCode, encodeBackup, decodeBackup, restoreBackup, buildPayload, applyImport };
+  return { BUILTIN_CATEGORIES, parsePence, evalPence, formatPence, newId, mergeById, currentShared, settledEntries, computeBalance, settle, encodeCode, decodeCode, encodeBackup, decodeBackup, restoreBackup, buildPayload, markSent, unsentEntries, applyImport };
 });
